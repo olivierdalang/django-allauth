@@ -3,7 +3,10 @@ import importlib
 from collections import OrderedDict
 
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 
+import logging
+logger = logging.getLogger(__name__)
 
 class ProviderRegistry(object):
     def __init__(self):
@@ -12,9 +15,11 @@ class ProviderRegistry(object):
 
     def get_list(self, request=None):
         self.load()
-        return [
-            provider_cls(request)
-            for provider_cls in self.provider_map.values()]
+        for provider_cls in self.provider_map.values():
+            try:
+                yield provider_cls(request)
+            except ImproperlyConfigured:
+                logger.warning('Provider {} is improperly configured and will be ignored.'.format(provider_cls.name))
 
     def register(self, cls):
         self.provider_map[cls.id] = cls
