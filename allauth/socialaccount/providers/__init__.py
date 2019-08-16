@@ -1,4 +1,5 @@
 import importlib
+import warnings
 
 from collections import OrderedDict
 
@@ -12,9 +13,17 @@ class ProviderRegistry(object):
 
     def get_list(self, request=None):
         self.load()
-        return [
-            provider_cls(request)
-            for provider_cls in self.provider_map.values()]
+        from ..models import SocialApp
+        providers = []
+        for provider_cls in self.provider_map.values():
+            try:
+                SocialApp.objects.get_current(provider_cls.id, request)
+                providers.append(provider_cls(request))
+            except SocialApp.DoesNotExist:
+                warnings.warn("No {} app configured: please"
+                              " add a SocialApp using the Django"
+                              " admin")
+        return providers
 
     def register(self, cls):
         self.provider_map[cls.id] = cls
